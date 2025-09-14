@@ -40,3 +40,5 @@ print("순위\t이름\t성적")
 print("-------------------")
 for student in sorted_students:
     print(f"{student[2]}등\t{student[0]}\t{student[1]}점")
+
+# 석차순으로 정렬

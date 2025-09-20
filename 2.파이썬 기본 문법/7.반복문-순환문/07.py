@@ -33,3 +33,7 @@ for i in purchases:
         customer_counts += 1
 print(f'25000이상 구매한 고객의 수 : {customer_counts}')
 # 25000원 이상 구매한 고객은 누구?
+
+for idx,price in enumerate(purchases):
+    if price >= 25000:
+        print(f'고객명 : {customers[idx]}  구매가격 : {price}')

@@ -17,4 +17,4 @@ except:
 else:
     print('try 구분에서 에라가 발생하지 않으면')
 finally:
-    print('에러발생 상관없이 무조건 이 부분은 실행')    
+    print('에러발생 상관없이 무조건 이 부분은 실행')

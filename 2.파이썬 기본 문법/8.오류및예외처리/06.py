@@ -14,13 +14,13 @@ valid_data = []
 # 에러 저장
 error_log = []
 
-for name,p in customer_data:
+for name,p in customer_data: # ('김민수','15000')
     try:
         if p is None:
-            pass  # 예외 발생
+            raise ValueError('구매금액이 없습니다.')
         amount = int(p)
         if amount < 0 :
-            pass # 예외 발생
+            raise ValueError('음수 금액입니다.')
     except ValueError as e:
         error_log.append(f'{name}: {e}')
     except TypeError:

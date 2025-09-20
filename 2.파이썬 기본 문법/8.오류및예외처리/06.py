@@ -19,7 +19,7 @@ for name,p in customer_data:
         if p is None:
             pass  # 예외 발생
         amount = int(p)
-        if p < 0 :
+        if amount < 0 :
             pass # 예외 발생
     except ValueError as e:
         error_log.append(f'{name}: {e}')

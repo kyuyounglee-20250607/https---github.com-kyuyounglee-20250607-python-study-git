@@ -35,5 +35,8 @@ for i in dict_1.keys():
 for i in dict_1.values():
     print(f'i = {i}')    
 # .items()  (key,value)  형태의 리스트집합
-for i in dict.items():
+for i in dict_1.items():
     print(f'i = {i}')    
+
+print(list(dict_1.items()))
+# dict_items([('name', '홍길동'), ('age', 20), ('addr', '서울')])

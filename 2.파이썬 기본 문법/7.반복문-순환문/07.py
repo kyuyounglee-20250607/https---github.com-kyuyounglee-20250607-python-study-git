@@ -20,4 +20,16 @@ for _ in range(10):
     purchases.append(random.randint(10,50)*1000)
 
 # 총 구매금액
+total_price = 0
+for i in purchases:
+    total_price += i
+# total_price = sum(purchases)    
+print(f'총 구매금액 : {total_price}')
+
 # 25000원 이상 구매한 고객의 수
+customer_counts = 0
+for i in purchases:
+    if i >= 25000:
+        customer_counts += 1
+print(f'25000이상 구매한 고객의 수 : {customer_counts}')
+# 25000원 이상 구매한 고객은 누구?

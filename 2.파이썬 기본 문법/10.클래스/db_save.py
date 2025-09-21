@@ -16,8 +16,8 @@ cursor.execute('''
 ''')
 # 데이터 생성
 customers_data =[
-    ('홍길동','hong@gmail.com',25),
-    ('이순신','lee@gmail.com',30,)
+    ('홍길동2','hong2@gmail.com',25),
+    ('이순신2','lee2@gmail.com',30,)
 ]
 # db 데이터  삽입
 cursor.executemany('''

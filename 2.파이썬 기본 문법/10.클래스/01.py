@@ -11,7 +11,17 @@ class Student:
     def get_avg(self):
         return self.get_total()/len(self.scores)
 
-s1 = Student('홍길동',20,(95,98,88)  )    
-s2 = Student('이순신',30,(100,98,98)  )    
-print(s1)
-print(s2)
+s =Student('홍길동',20,(95,98,88)  )
+
+students = [
+    Student('홍길동',20,(95,98,88)  ),    
+    Student('이순신',30,(100,98,98)  )    
+]
+
+print(students[0].name)
+students[0].name = '강감찬'
+
+for s in students:
+    print(s)
+
+

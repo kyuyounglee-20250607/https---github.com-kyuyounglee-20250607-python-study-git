@@ -16,17 +16,18 @@ cursor.execute('''
 ''')
 # 데이터 생성
 customers_data =[
-    ('홍길동','hong@gmail.com',25,100),
+    ('홍길동','hong@gmail.com',25),
     ('이순신','lee@gmail.com',30,)
 ]
 # db 데이터  삽입
 cursor.executemany('''
     INSERT INTO 
-        customers (name,email,age,loyalty_points) 
-        VALUES (?,?,?,?)'''
+        customers (name,email,age) 
+        VALUES (?,?,?)'''
         ,customers_data
 )
 conn.commit()  # db 반영
+print('데이터 삽입 완료')
 #연결 닫기
 conn.close()
 

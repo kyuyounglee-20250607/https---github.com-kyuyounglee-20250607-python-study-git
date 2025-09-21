@@ -1,4 +1,5 @@
 
+# 파이썬 내장 DB 
 class Customer:
     def __init__(self,name,email,age = 18):
         self.name = name

@@ -5,11 +5,11 @@ import os
 dotenv.load_dotenv()  # .env 환경변수 파일을 로드함
 OPEN_WEATHER_MAP_KEY = os.getenv("OPEN_WEATHER_MAP_KEY")
 
-url = 'http://api.openweathermap.org/geo/1.0/direct'
+url = 'http://api.openweathermap.org/data/2.5/weather'
 params = {
-    'q': 'London',
-    'limit': 5,
-    'appid': OPEN_WEATHER_MAP_KEY
+    'q': 'London',    
+    'appid': OPEN_WEATHER_MAP_KEY,
+    'units':'metric'
 }
 
 response = requests.get(url, params=params)

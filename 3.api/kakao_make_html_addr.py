@@ -61,9 +61,8 @@ if __name__ == "__main__":
     dotenv.load_dotenv()  # .env 환경변수 파일을 로드함
 
     # 발급받은 REST API 키 입력
-    KAKAO_API_KEY = os.getenv("KAKAO_JAVA_SCRIPT_KEY")
-    # 예시 좌표: 서울시청
-    latitude = 37.566826
-    longitude = 126.978652
+    KAKAO_API_KEY = os.getenv("KAKAO_JAVA_SCRIPT_KEY")    
+    latitude = 37.4946959681486
+    longitude = 127.030080389903
 
     make_kakao_map(KAKAO_API_KEY,latitude, longitude)

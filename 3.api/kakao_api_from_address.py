@@ -31,7 +31,7 @@ def get_coords_from_address(address):
 
 
 if __name__ == "__main__":
-    address = '전북 삼성동 100'
+    address = '서울특별시 강남구 강남대로78길 8'
 
     address = get_coords_from_address(address)
     # print("결과:", address)

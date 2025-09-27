@@ -38,3 +38,5 @@ if __name__ == "__main__":
     # 보기편하기 들여쓰기를 3만큼  ensure_ascii=False 한글깨짐을 방지
     import json
     print(json.dumps(address,indent=3,ensure_ascii=False))
+    print()
+    print(f'{address["x"]},{address["y"]} ')

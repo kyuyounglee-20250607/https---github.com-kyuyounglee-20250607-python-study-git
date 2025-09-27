@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Kakao Map - Marker</title>
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=246d49cf7c146671c5cabcd850c02ea2"></script>
+</head>
+<body>
+<div id="map" style="width:600px;height:400px;"></div>
+
+<script>
+    // 예시 좌표 (서울시청)
+    var lat = 35.9766482774572;
+    var lng = 126.99597495347;
+
+    // 지도 생성
+    var mapContainer = document.getElementById('map');
+    var mapOption = { 
+        center: new kakao.maps.LatLng(lat, lng), // 중심좌표
+        level: 3 // 확대 레벨
+    };
+
+    var map = new kakao.maps.Map(mapContainer, mapOption); 
+
+    // 마커 생성
+    var marker = new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(lat, lng)
+    });
+
+    // 마커 지도에 표시
+    marker.setMap(map);
+</script>
+</body>
+</html>

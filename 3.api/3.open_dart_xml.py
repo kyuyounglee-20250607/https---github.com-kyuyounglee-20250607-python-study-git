@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 
 def get_data_dart():
     # XML 파일 읽기
+    # 2.open_dart_zip.py를 실행해서 다운로드한  zip파일을 압축해제후
     tree = ET.parse("D:\week_src\CORPCODE.xml")   # 파일명은 실제 xml 파일 이름으로 변경
     root = tree.getroot()
 

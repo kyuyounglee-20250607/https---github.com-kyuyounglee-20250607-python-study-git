@@ -71,6 +71,7 @@ def make_folium_map(latitude, longitude, html_file="folium_map.html"):
 
     # 지도를 HTML 파일로 저장
     m.save(html_file)
+    print(f"{html_file} 파일이 생성되었습니다. 브라우저에서 열어보세요!")
 
 
 

@@ -85,4 +85,11 @@ def main():
         print(f"❌ 오류: {e}")
 
 if __name__ == "__main__":
-    main()
+    # main()
+
+    kospi = fdr.StockListing('KOSPI')
+    kosdaq = fdr.StockListing('KOSDAQ')
+    
+    # 데이터 합치기 및 정리
+    stocks = pd.concat([kospi, kosdaq], ignore_index=True)
+    stocks.to_csv('stocks.csv', index=False)

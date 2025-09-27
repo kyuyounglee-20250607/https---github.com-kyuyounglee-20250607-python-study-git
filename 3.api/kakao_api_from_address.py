@@ -30,6 +30,8 @@ def get_coords_from_address(address):
         return None
 
 
+
+
 if __name__ == "__main__":
     address = '서울특별시 강남구 강남대로78길 8'
 

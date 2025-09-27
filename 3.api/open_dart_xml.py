@@ -5,9 +5,11 @@ tree = ET.parse("D:\week_src\CORPCODE.xml")   # 파일명은 실제 xml 파일 �
 root = tree.getroot()
 
 # 원하는 값 추출
+result = []
 for item in root.findall("list"):
     corp_code = item.find("corp_code").text.strip()   # 공백 제거
     corp_name = item.find("corp_name").text.strip()
     
-    print("corp_code:", corp_code)
-    print("corp_name:", corp_name)
+    result.append( (corp_code,corp_name) )
+
+print(result[:3])

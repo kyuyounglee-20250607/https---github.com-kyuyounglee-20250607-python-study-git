@@ -4,15 +4,14 @@ import os
 dotenv.load_dotenv()  # .env 환경변수 파일을 로드함
 
 key = os.getenv('OPEN_DART_KEY')
-url = 'https://opendart.fss.or.kr/api/list.json'
+url = 'https://opendart.fss.or.kr/api/corpCode.xml'
 params = {
-    'crtfc_key': key, 
-    'corp_code': '00126380',
+    'crtfc_key': key,     
 
 }
 
 response = requests.get(url, params=params)
 if response.status_code == 200:
-    print(response.json())
+    print(response)
 else:
     print('Error:', response.status_code, response.text)

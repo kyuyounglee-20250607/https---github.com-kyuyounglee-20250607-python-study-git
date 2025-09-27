@@ -56,8 +56,14 @@ def make_kakao_map(key, lat, lng, html_file="map.html"):
     print(f"{html_file} 파일이 생성되었습니다. 브라우저에서 열어보세요!")
 
 if __name__ == "__main__":
+    import dotenv
+    import os
+    dotenv.load_dotenv()  # .env 환경변수 파일을 로드함
+
+    # 발급받은 REST API 키 입력
+    KAKAO_API_KEY = os.getenv("KAKAO_JAVA_SCRIPT_KEY")
     # 예시 좌표: 서울시청
     latitude = 37.566826
     longitude = 126.978652
 
-    make_kakao_map(latitude, longitude)
+    make_kakao_map(KAKAO_API_KEY,latitude, longitude)

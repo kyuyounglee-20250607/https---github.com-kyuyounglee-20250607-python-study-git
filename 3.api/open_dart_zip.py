@@ -12,6 +12,9 @@ params = {
 
 response = requests.get(url, params=params)
 if response.status_code == 200:
-    print(response)
+    # binary 파일
+    with open('codes.zip','wb') as f:
+        f.write(response.content)
+    print('파일 다운로드 성공')
 else:
     print('Error:', response.status_code, response.text)

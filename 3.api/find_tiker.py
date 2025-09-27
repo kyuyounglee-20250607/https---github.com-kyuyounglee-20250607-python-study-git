@@ -14,7 +14,7 @@ def load_stock_data():
     
     # 데이터 합치기 및 정리
     stocks = pd.concat([kospi, kosdaq], ignore_index=True)
-    stocks = stocks[['Symbol', 'Name']].rename(columns={'Symbol': 'ticker', 'Name': 'name'})
+    stocks = stocks[['ISU_CD', 'Name']].rename(columns={'ISU_CD': 'ticker', 'Name': 'name'})
     stocks['ticker'] = stocks['ticker'].astype(str).str.zfill(6)
     
     print(f"✅ {len(stocks):,}개 종목 로드 완료")
@@ -85,11 +85,4 @@ def main():
         print(f"❌ 오류: {e}")
 
 if __name__ == "__main__":
-    # main()
-
-    kospi = fdr.StockListing('KOSPI')
-    kosdaq = fdr.StockListing('KOSDAQ')
-    
-    # 데이터 합치기 및 정리
-    stocks = pd.concat([kospi, kosdaq], ignore_index=True)
-    stocks.to_csv('stocks.csv', index=False)
+    main()

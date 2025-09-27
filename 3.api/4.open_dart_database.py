@@ -1,4 +1,4 @@
-import open_dart_xml as dart
+import three_open_dart_xml as dart
 
 # sqlite3 데이터베이스 생성 테이블 생성 데이터 삽입
 import sqlite3

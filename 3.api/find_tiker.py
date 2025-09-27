@@ -1,3 +1,4 @@
+# pip install finance-datareader
 import pandas as pd
 import FinanceDataReader as fdr
 from difflib import get_close_matches

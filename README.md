@@ -8,3 +8,8 @@
 
 
 https://claude.ai/public/artifacts/86483aba-5788-45f4-994a-2921ec0a05a9
+
+
+
+
+https://chatgpt.com/share/68d78b35-e5fc-8001-b696-4ba8e6368673

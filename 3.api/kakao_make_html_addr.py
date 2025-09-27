@@ -55,6 +55,25 @@ def make_kakao_map(key, lat, lng, html_file="map.html"):
 
     print(f"{html_file} 파일이 생성되었습니다. 브라우저에서 열어보세요!")
 
+
+def make_folium_map(latitude, longitude, html_file="folium_map.html"):
+    import folium   
+
+    # 지도 생성
+    m = folium.Map(location=[latitude, longitude], zoom_start=12)
+
+    # 마커 추가
+    folium.Marker(
+        location=[latitude, longitude],
+        popup="서울",
+        tooltip="서울"
+    ).add_to(m)
+
+    # 지도를 HTML 파일로 저장
+    m.save("map.html")
+
+
+
 if __name__ == "__main__":
     import kakao_api_from_address as kakao_api
     import dotenv
@@ -70,3 +89,5 @@ if __name__ == "__main__":
     longitude = result['x']   
 
     make_kakao_map(KAKAO_API_KEY,latitude, longitude)
+   
+    make_folium_map(latitude, longitude)

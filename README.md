@@ -3,3 +3,8 @@
 설정 / 앱 에서 Microsoft Visual Studio Code, Miniconda3를 제거합니다.
 
 사용자계정 폴더의 .conda, .ipython, .vscode, miniconda3 폴더와 .condarc 파일을 제거합니다. 아울러 C:\Users\사용자계정\AppData\Roaming\Code 폴더도 제거합니다.
+
+
+
+
+https://claude.ai/public/artifacts/86483aba-5788-45f4-994a-2921ec0a05a9

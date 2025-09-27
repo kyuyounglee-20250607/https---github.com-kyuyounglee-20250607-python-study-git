@@ -70,7 +70,7 @@ def make_folium_map(latitude, longitude, html_file="folium_map.html"):
     ).add_to(m)
 
     # 지도를 HTML 파일로 저장
-    m.save("map.html")
+    m.save(html_file)
 
 
 

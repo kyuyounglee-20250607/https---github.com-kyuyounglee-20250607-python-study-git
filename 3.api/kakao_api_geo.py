@@ -1,7 +1,12 @@
 import requests
 
+import dotenv
+import os
+dotenv.load_dotenv()  # .env 환경변수 파일을 로드함
+
+
 # 발급받은 REST API 키 입력
-KAKAO_API_KEY = "발급받은_본인_API_KEY"
+KAKAO_API_KEY = os.getenv("REST_API")
 
 def get_address_from_coords(x, y):
     """

@@ -1,0 +1,12 @@
+# 매출 보고서
+date = ['월','화','수','목','금']
+sales = [25000,18000,30000,22000,15000]
+# 총 매출과 평균 매출을 출력
+# 평균 이상 매출이 일어난 요일을 출력
+
+total = sum(sales)
+avg = total / len(sales)
+print(f'총 매출 : {total}  평균 : {avg}')
+for idx,sale in enumerate(sales):
+    if sale >= avg:
+        print(date[idx])

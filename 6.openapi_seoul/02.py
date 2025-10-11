@@ -94,3 +94,6 @@ column_mapping = {
 
 df.rename(columns= column_mapping, inplace=True)
 df.to_csv('seoul_store.csv',index=False,encoding='cp949')
+
+df.set_index('기준_년분기_코드',inplace=True)
+df.drop(columns=['서울시_코드','서울시_코드_명'],inplace=True)

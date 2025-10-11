@@ -97,3 +97,8 @@ df.to_csv('seoul_store.csv',index=False,encoding='cp949')
 
 df.set_index('기준_년분기_코드',inplace=True)
 df.drop(columns=['서울시_코드','서울시_코드_명'],inplace=True)
+
+with pd.ExcelWriter('output.xlsx') as writer:
+    df.to_excel(writer, sheet_name='Sheet1')
+    
+    

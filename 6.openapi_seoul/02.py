@@ -11,18 +11,28 @@
 	# 서울시 상권분석서비스(추정매출-서울시)
 # http://openapi.seoul.go.kr:8088/(인증키)/xml/VwsmMegaSelngW/1/5/
 
+# 공공데이터
+# https://data.seoul.go.kr/dataList/OA-22177/S/1/datasetView.do
+# 서울시 상권분석서비스(추정매출-서울시)
+
 import requests
 import dotenv
 import os
 dotenv.load_dotenv()  # .env 환경변수 파일을 로드함
 
 key = os.getenv("SEOUL_API")
-url = 'http://openapi.seoul.go.kr:8088/'+key+'/json/VwsmMegaSelngW/1/5/'
+
+url = 'http://openapi.seoul.go.kr:8088/'+key+'/json/VwsmMegaSelngW/1/1000/'
 response = requests.get(url)
 print(f'접속주소 : {response.url}')
 print(f'응답코드 : {response.status_code}')
 result = response.json()
 # 보기쉽게 들여쓰기로 출력
 import json
-print(json.dumps(result,indent=4,ensure_ascii=False)) 
+result = result['VwsmMegaSelngW']['row']
+print(len(result))
+print(json.dumps(result[0],indent=4,ensure_ascii=False)) 
 
+import pandas as pd
+df = pd.DataFrame(result)
+df.to_csv('seoul_store.csv',index=False,encoding='utf-8')

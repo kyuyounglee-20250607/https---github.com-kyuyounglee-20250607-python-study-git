@@ -24,5 +24,5 @@ print(f'응답코드 : {response.status_code}')
 result = response.json()
 # 보기쉽게 들여쓰기로 출력
 import json
-print(json.dumps(result,indent=4,ensure_ascii=False))
+print(json.dumps(result,indent=4,ensure_ascii=False)) 
 

@@ -93,7 +93,7 @@ def load_store_data():
             st.error(f"데이터 로드 실패: {e}")
             return None
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10)
 def fetch_subway_data(station_name):
     """지하철 실시간 데이터 조회"""
     key = os.getenv("SEOUL_SUBWAY_API")
@@ -274,6 +274,9 @@ if menu == "📊 상권분석":
 # ==========================================
 elif menu == "🚇 지하철 실시간":
     st.header("🚇 서울 지하철 실시간 도착정보")
+
+    # 자동 업데이트 (10초마다 페이지 새로고침)
+    st.html('<meta http-equiv="refresh" content="10">', height=0)
     
     # 2호선 역 리스트
     line2_stations = [

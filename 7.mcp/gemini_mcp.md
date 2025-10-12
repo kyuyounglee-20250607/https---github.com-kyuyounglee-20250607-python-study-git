@@ -67,3 +67,28 @@ gemini mcp list 입력
 예) filesystme mcp가 동작한다면
 "로컬 파일 목록 보여줘"
 ```
+
+# sequentialthinking
+```
+smethery.ai 에서 검색해서 등록한다.
+ex)
+{
+  "mcpServers": {
+    "server-sequential-thinking": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/server-sequential-thinking",
+        "--key",
+        "당신의 키.. 자동으로 셋팅되어 있음",
+        "--profile",
+        "parliamentary-tahr-EbBoPy"
+      ]
+    }
+  }
+}
+```

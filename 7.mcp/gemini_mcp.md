@@ -1,15 +1,21 @@
-Google AI Studio에서 API 키 발급
+# node.js 다운로드 및 설치
+# gemini cli 설치
+```
+npm install -g @google/gemini-cli
+```
+
+#Google AI Studio에서 API 키 발급
 
 https://aistudio.google.com/apikey
 접속
 
-구글 계정 로그인
+#구글 계정 로그인
 
 “Create API key” (API 키 만들기) 클릭
 
-키가 생성되면 복사해 둡니다. (예: AIzaSy... 형태)
+#키가 생성되면 복사해 둡니다. (예: AIzaSy... 형태)
 
-PowerShell 또는 CMD에서 아래 명령 실행
+#PowerShell 또는 CMD에서 아래 명령 실행
 ```
 setx GEMINI_API_KEY "<당신의키>"
 ```
@@ -24,11 +30,7 @@ settings.json파일이 생김 단 실행한 폴더에 git이나 기타 프로젝
 안생기면 직접 생성
 ```
 
-# node.js 다운로드 및 설치
-# gemini cli 설치
-```
-npm install -g @google/gemini-cli
-```
+
 
 # settings.json 생성 및 수정
 ```

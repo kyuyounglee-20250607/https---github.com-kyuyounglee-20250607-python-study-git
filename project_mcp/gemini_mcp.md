@@ -93,4 +93,29 @@ ex)
 }
 ```
 
+# Context7 MCP
+최신 문서 및 코드 예제 실시간 제공: 최신 버전의 문서와 코드 예제를 프롬프트에 통합하여 제공
+
+버전별 문서 지원: 특정 라이브러리나 API의 버전별 문서와 예제를 지원
+
+프롬프트 내 통합 사용: 프롬프트에 use context7를 추가하여 문서와 예제를 실시간으로 활용
+```
+smithery.ai 에서 검색해서 등록한다.
+ex)
+"context7-mcp": {
+        "command": "cmd",
+        "args": [
+          "/c",
+          "npx",
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@upstash/context7-mcp",
+          "--key",
+          "자동으로 생성됨"
+        ]
+      }
+```
+
+
 # gemini mcp list 입력해서 mcp서버들이 연결되는것을 확인

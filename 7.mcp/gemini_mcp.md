@@ -92,3 +92,5 @@ ex)
   }
 }
 ```
+
+# gemini mcp list 입력해서 mcp서버들이 연결되는것을 확인

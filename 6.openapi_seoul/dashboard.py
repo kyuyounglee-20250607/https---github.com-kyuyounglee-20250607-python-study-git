@@ -276,7 +276,7 @@ elif menu == "🚇 지하철 실시간":
     st.header("🚇 서울 지하철 실시간 도착정보")
 
     # 자동 업데이트 (10초마다 페이지 새로고침)
-    st.html('<meta http-equiv="refresh" content="10">', height=0)
+    # st.html('<meta http-equiv="refresh" content="10">', height=0)
     
     # 2호선 역 리스트
     line2_stations = [

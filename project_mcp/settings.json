@@ -1,41 +1,56 @@
 {
   "mcpServers": {
     "filesystem": {
-        "command": "npx",
-        "args": [
-            "-y",
-            "@modelcontextprotocol/server-filesystem",
-            "D:/week_src",
-            "C:/Users/tj/Downloads"
-            ]
-        },
-        "server-sequential-thinking": {
-        "command": "cmd",
-        "args": [
-            "/c",
-            "npx",
-            "-y",
-            "@smithery/cli@latest",
-            "run",
-            "@smithery-ai/server-sequential-thinking",
-            "--key",
-            "bfb76cff-46a8-4d7b-a2b0-08f144a366db",
-            "--profile",
-            "parliamentary-tahr-EbBoPy"
-        ]
-        },
-        "context7-mcp": {
-        "command": "cmd",
-        "args": [
-          "/c",
-          "npx",
-          "-y",
-          "@smithery/cli@latest",
-          "run",
-          "@upstash/context7-mcp",
-          "--key",
-          "bfb76cff-46a8-4d7b-a2b0-08f144a366db"
-        ]
-      }
-    }    
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "D:/week_src",
+        "C:/Users/tj/Downloads"
+      ]
+    },
+    "server-sequential-thinking": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/server-sequential-thinking",
+        "--key",
+        "bfb76cff-46a8-4d7b-a2b0-08f144a366db",
+        "--profile",
+        "parliamentary-tahr-EbBoPy"
+      ]
+    },
+    "context7-mcp": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@upstash/context7-mcp",
+        "--key",
+        "bfb76cff-46a8-4d7b-a2b0-08f144a366db"
+      ]
+    },
+    "sqlite": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/sqlite",
+        "--key",
+        "bfb76cff-46a8-4d7b-a2b0-08f144a366db",
+        "--profile",
+        "parliamentary-tahr-EbBoPy"
+      ]
+    }
+  }
 }

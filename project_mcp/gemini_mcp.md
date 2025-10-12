@@ -117,5 +117,14 @@ ex)
       }
 ```
 
+# SQLite MCP Server
+```
+smithery.ai 에서 검색해서 등록한다.
+settings.json 이 동작을 안하기 때문에  command line 명령어로 실행
+
+(.venv) D:\week_src>npx -y @smithery/cli@latest install @smithery-ai/sqlite --client gemini-cli --profile parliamentary-tahr-EbBoPy --key bfb76cff-46a8-4d7b-a2b0-08f144a366db --config '"{\"dbPath\":\"D:/week_src/project_mcp/db/sample.db\"}"'
+✔ Successfully resolved @smithery-ai/sqlite
+✓ @smithery-ai/sqlite successfully installed for gemini-cli
+```
 
 # gemini mcp list 입력해서 mcp서버들이 연결되는것을 확인

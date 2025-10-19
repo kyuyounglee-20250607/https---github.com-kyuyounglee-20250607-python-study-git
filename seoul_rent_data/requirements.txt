@@ -4,3 +4,6 @@ requests
 python-dotenv
 aiohttp
 folium
+streamlit-folium
+plotly
+numpy

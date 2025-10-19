@@ -8,11 +8,17 @@ import aiohttp
 import asyncio
 import time
 from datetime import datetime
+import folium
+from streamlit_folium import folium_static
+from folium import plugins
+import folium
+from streamlit_folium import folium_static
 
 # 환경변수 로드
 load_dotenv()
 SEOUL_API_KEY = os.getenv('SEOUL_LANDMARK_API')
 KAKAO_API_KEY = os.getenv('REST_API')
+KAKAO_JAVA_SCRIPT_KEY = os.getenv('KAKAO_JAVA_SCRIPT_KEY')
 
 # 페이지 설정
 st.set_page_config(
@@ -71,8 +77,45 @@ def create_address(row, gu_name):
         pass
     return address
 
-# Kakao 지도 생성 함수
-def create_kakao_map(data_df, center_lat, center_lng):
+# Folium 지도 생성 함수
+def create_folium_map(data_df, center_lat, center_lng):
+    # 기본 지도 생성
+    m = folium.Map(
+        location=[center_lat, center_lng],
+        zoom_start=14,
+        tiles='OpenStreetMap'
+    )
+    
+    # 마커 클러스터 생성
+    marker_cluster = plugins.MarkerCluster().add_to(m)
+    
+    # 데이터포인트 추가
+    for _, row in data_df.iterrows():
+        if pd.notna(row['위도']) and pd.notna(row['경도']):
+            # 팝업 내용 생성
+            popup_content = f"""
+                <div style='width:200px'>
+                <b>{row['건물명'] if pd.notna(row['건물명']) else row['주소']}</b><br>
+                전월세구분: {row['전월세구분']}<br>
+                보증금: {int(row['보증금(만원)']):,}만원<br>
+                임대료: {int(row['임대료(만원)']):,}만원<br>
+                면적: {row['임대면적(㎡)']}㎡<br>
+                계약일: {row['계약일']}
+                </div>
+            """
+            
+            # 마커 색상 설정 (전세/월세 구분)
+            color = 'red' if row['전월세구분'] == '전세' else 'blue'
+            
+            # 마커 추가
+            folium.Marker(
+                location=[row['위도'], row['경도']],
+                popup=folium.Popup(popup_content, max_width=300),
+                icon=folium.Icon(color=color, icon='info-sign'),
+                tooltip=f"{row['건물명'] if pd.notna(row['건물명']) else row['주소']}"
+            ).add_to(marker_cluster)
+    
+    return m
     # HTML 템플릿에 데이터 삽입
     markers = []
     for _, row in data_df.iterrows():
@@ -85,7 +128,7 @@ def create_kakao_map(data_df, center_lat, center_lng):
     
     map_html = f"""
     <div id="map" style="width:100%;height:600px;"></div>
-    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={KAKAO_API_KEY}&autoload=false"></script>
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={KAKAO_JAVA_SCRIPT_KEY}&autoload=false"></script>
     <script>
         kakao.maps.load(function() {{
             var container = document.getElementById('map');
@@ -218,8 +261,9 @@ def main():
             if not filtered_df.empty:
                 center_lat = filtered_df['위도'].mean()
                 center_lng = filtered_df['경도'].mean()
-                map_html = create_kakao_map(filtered_df, center_lat, center_lng)
-                st.components.v1.html(map_html, height=600)
+                # Folium 지도 생성 및 표시
+                map_obj = create_folium_map(filtered_df, center_lat, center_lng)
+                folium_static(map_obj)
 
                 # 데이터 테이블 표시
                 st.subheader("상세 데이터")

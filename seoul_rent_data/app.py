@@ -64,26 +64,34 @@ def get_coordinates(address):
     return None, None
 
 # 임대차 데이터 조회 함수
-async def _get_rent_data_async(gu_code, gu_name, start_idx, end_idx):
+async def _get_rent_data_async(gu_code, dong_code=None, page=1):
     """비동기 데이터 조회 함수"""
-    # 구 코드만 사용하도록 URL 수정
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}/"    
+    page_size = 1000
+    start_idx = (page - 1) * page_size + 1
+    end_idx = page * page_size
+    
+    # 기본 URL 구성
+    base_url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}"
+    
+    # 자치구 코드와 법정동 코드 추가
+    params = []
+    if gu_code:
+        params.append(f"CGG_CD={gu_code}")
+    if dong_code:
+        params.append(f"STDG_CD={dong_code}")
+    
+    # URL에 파라미터 추가
+    url = f"{base_url}{'?' + '&'.join(params) if params else ''}"
+    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:                
                 if response.status == 200:
                     data = await response.json()
                     if 'tbLnOpendataRentV' in data:
-                        # 구 코드로 필터링
                         result = data['tbLnOpendataRentV']
                         if 'row' in result:
-                            filtered_rows = [
-                                row for row in result['row'] 
-                                if str(row.get('SGG_CD', '')).startswith(gu_code)
-                            ]
-                            result['row'] = filtered_rows
-                            result['list_total_count'] = len(filtered_rows)
-                            return result
+                            return result['row']
                     st.error("데이터 형식이 올바르지 않습니다.")
                     return None
                 else:
@@ -95,33 +103,63 @@ async def _get_rent_data_async(gu_code, gu_name, start_idx, end_idx):
         return None
 
 @st.cache_data(ttl=3600)  # 1시간 동안 캐시 유지
-def get_rent_data(gu_code, gu_name, start_idx, end_idx):
+def get_rent_data(gu_code, dong_code=None, page=1):
     """캐시 가능한 동기 래퍼 함수"""
-    result = asyncio.run(_get_rent_data_async(gu_code, gu_name, start_idx, end_idx))
-    if result:
-        return result.get('row', []), result.get('list_total_count', 0)
-    return [], 0
+    return asyncio.run(_get_rent_data_async(
+        gu_code=gu_code,
+        dong_code=dong_code,
+        page=page
+    ))
 
 @st.cache_data(ttl=3600)
-def get_cached_data(gu_code, gu_name, chunk_size=1000):
+def get_cached_data(gu_code, dong_code=None):
     """데이터 캐시 최적화 함수"""
     try:
-        # 초기 데이터로 전체 개수 확인
-        initial_data, total_count = get_rent_data(gu_code, gu_name, 1, 1)
-        if total_count == 0:
+        # 첫 페이지 데이터 조회
+        data = get_rent_data(
+            gu_code=gu_code,
+            dong_code=dong_code,
+            page=1
+        )
+        
+        if not data:
             return None, "데이터가 없습니다."
         
-        # 전체 데이터 수집
-        all_data = []
-        total_pages = (total_count + chunk_size - 1) // chunk_size
+        # 데이터 수집
+        all_data = data.copy()
+        current_page = 2
         
-        for page in range(total_pages):
-            start_idx = page * chunk_size + 1
-            end_idx = min((page + 1) * chunk_size, total_count)
-            
-            page_data, _ = get_rent_data(gu_code, gu_name, start_idx, end_idx)
-            if page_data:
-                all_data.extend(page_data)
+        # 데이터가 1000건인 경우 다음 페이지 확인
+        while len(data) == 1000:
+            data = get_rent_data(
+                gu_code=gu_code,
+                dong_code=dong_code,
+                page=current_page
+            )
+            if data:
+                all_data.extend(data)
+            current_page += 1
+            time.sleep(0.5)  # API 요청 간격 조절
+        
+        # 모든 데이터를 데이터프레임으로 변환
+        if all_data:
+            return pd.DataFrame(all_data), None
+        return None, "데이터를 찾을 수 없습니다."
+        
+        # 데이터가 있으면 모든 페이지 조회
+        all_data = initial_data
+        page = 2
+        
+        # 데이터가 더 있는 동안 계속 조회
+        while len(initial_data) == 1000:  # 페이지 크기가 1000이면 다음 페이지 존재
+            initial_data = get_rent_data(
+                gu_code=gu_code,
+                dong_code=dong_code,
+                page=page
+            )
+            if initial_data:
+                all_data.extend(initial_data)
+            page += 1
             time.sleep(0.5)  # API 요청 간격 조절
         
         return pd.DataFrame(all_data), None
@@ -377,6 +415,15 @@ def initialize_session_state():
     if 'last_update' not in st.session_state:
         st.session_state.last_update = None
 
+def load_location_codes():
+    """법정동 코드 데이터 로드"""
+    try:
+        codes_df = pd.read_csv('code.csv')
+        return codes_df
+    except Exception as e:
+        st.error(f"법정동 코드 파일 로드 중 오류 발생: {e}")
+        return None
+
 def main():
     st.title("서울시 임대차 정보 조회")
     
@@ -388,18 +435,35 @@ def main():
         st.header("데이터 조회 설정")
         
         # 법정동 코드 데이터 로드
-        try:
-            codes_df = pd.read_csv('code.csv')
-            gu_options = codes_df[['code', 'name']].values.tolist()
-        except Exception as e:
-            st.error(f"법정동 코드 파일 로드 중 오류 발생: {e}")
+        codes_df = load_location_codes()
+        if codes_df is None:
             return
-
+            
         # 자치구 선택
+        gu_options = codes_df[['자치구코드', '자치구명']].drop_duplicates()
         selected_gu = st.selectbox(
             "자치구 선택",
-            options=gu_options,
-            format_func=lambda x: x[1]
+            options=gu_options.values.tolist(),
+            format_func=lambda x: x[1],
+            key='selected_gu'
+        )
+        
+        # 선택된 자치구의 법정동 목록 필터링
+        dong_options = codes_df[
+            codes_df['자치구코드'] == selected_gu[0]
+        ][['법정동코드', '법정동명']].drop_duplicates()
+        
+        # 법정동 선택 (전체 선택 옵션 포함)
+        dong_options = pd.concat([
+            pd.DataFrame([['', '전체']], columns=['법정동코드', '법정동명']),
+            dong_options
+        ])
+        
+        selected_dong = st.selectbox(
+            "법정동 선택",
+            options=dong_options.values.tolist(),
+            format_func=lambda x: x[1],
+            key='selected_dong'
         )
         
         chunk_size = st.number_input(
@@ -420,32 +484,41 @@ def main():
         # 상태 표시 컨테이너 초기화
         status_container = st.empty()
         progress_container = st.empty()
-        result_container = st.empty()
         
-        # 데이터 조회 시작
         with st.spinner("🔍 데이터를 조회중입니다..."):
-            # 캐시된 데이터 조회
+            # 진행 상태 표시
+            status_container.info("데이터를 수집하고 있습니다...")
+            progress_container.progress(0.2)
+            
+            # 자치구/법정동 코드로 데이터 조회
             df, error_msg = get_cached_data(
-                selected_gu[0], 
-                selected_gu[1], 
-                chunk_size=chunk_size
+                gu_code=selected_gu[0], 
+                dong_code=selected_dong[0] if selected_dong[0] else None
             )
+            progress_container.progress(0.4)
             
             if error_msg:
-                st.error(error_msg)
+                status_container.error(error_msg)
                 return
                 
+            if df is None or df.empty:
+                status_container.error("데이터를 가져오는데 실패했습니다.")
+                return
+                
+            status_container.info(f"총 {len(df):,}건의 데이터를 수집했습니다.")
+            progress_container.progress(0.6)
+            
             # 데이터 전처리
+            status_container.info("데이터를 전처리하고 있습니다...")
             df = preprocess_data(df)
             if df is None:
-                st.error("데이터 전처리 중 오류가 발생했습니다.")
+                status_container.error("데이터 전처리 중 오류가 발생했습니다.")
                 return
             
-            # 주소 생성
-            df['주소'] = df.apply(lambda x: create_address(x, selected_gu[1]), axis=1)
+            progress_container.progress(0.8)
             
-            # 위치 정보 조회 진행률 표시
-            status_container.text("🌍 위치 정보를 조회중입니다...")
+            # 주소 생성 및 위치 정보 조회
+            status_container.info("🌍 위치 정보를 조회중입니다...")
             progress_bar = progress_container.progress(0)
             
             coordinates = []
@@ -529,44 +602,26 @@ def main():
                 height=400
             )
             
-        total_count = initial_data[0].get('총건수', 1000)  # 기본값 1000
-        page_size = 1000
-        total_pages = (total_count + page_size - 1) // page_size
-        
-        # 진행 상태 업데이트
-        result_container.info(f"총 {total_count:,}건의 데이터를 조회합니다.")
-        
-        # 전체 데이터 수집
-        all_data = []
-        for page in range(total_pages):
-            start_idx = page * page_size + 1
-            end_idx = min((page + 1) * page_size, total_count)
+        # 데이터 조회 시작
+        with st.spinner("데이터를 가져오는 중..."):
+            # 자치구/법정동 코드로 데이터 조회
+            df, error_msg = get_cached_data(
+                gu_code=selected_gu[0], 
+                dong_code=selected_dong[0] if selected_dong[0] else None
+            )
             
-            # 진행률 업데이트
-            progress = (page + 1) / total_pages
-            status_container.text(f"🔍 데이터를 조회중입니다... ({start_idx:,}~{end_idx:,}/{total_count:,})")
-            progress_bar.progress(progress)
+            if error_msg:
+                st.error(error_msg)
+                return
+                
+            # 데이터 전처리
+            df = preprocess_data(df)
+            if df is None:
+                st.error("데이터 전처리 중 오류가 발생했습니다.")
+                return
             
-            # 데이터 조회
-            page_data = get_rent_data(selected_gu[0], selected_gu[1], start_idx, end_idx)
-            if page_data:
-                all_data.extend(page_data)
-            time.sleep(0.5)  # API 요청 간격 조절
-        
-        # 진행 완료
-        progress_bar.progress(1.0)
-        status_container.text("✅ 데이터 조회가 완료되었습니다!")
-        
-        if not all_data:
-            st.error("데이터를 조회할 수 없습니다.")
-            return
-            
-        data = all_data
-
-
-
-        # 데이터프레임 생성 및 전처리
-        df = pd.DataFrame(data)
+            # 주소 생성
+            df['주소'] = df.apply(lambda x: create_address(x, selected_gu[1]), axis=1)
         
         # 숫자형 컬럼 변환
         numeric_columns = ['GRFE', 'RTFE', 'MNO', 'SNO', 'FLR', 'RENT_AREA']

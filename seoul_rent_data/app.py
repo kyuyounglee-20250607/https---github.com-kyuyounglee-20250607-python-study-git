@@ -89,11 +89,11 @@ async def get_total_count(gu_code=None, dong_code=None):
     # 필터링은 URL이 아닌 데이터 수신 후 처리
     # 서울시 API는 URL 파라미터로 필터링을 지원하지 않을 수 있음
     
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1000"
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1"
     
     print(f"[DEBUG] Total Count URL: {url}")  # 디버깅용
     
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = aiohttp.ClientTimeout(total=60*5)
     
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:

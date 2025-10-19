@@ -86,11 +86,10 @@ def build_api_params(gu_code=None, dong_code=None):
 # 전체 데이터 개수 조회 (필터 적용)
 async def get_total_count(gu_code=None, dong_code=None):
     """구/동 필터를 적용한 전체 데이터 개수 조회 (1/1로 요청)"""
-    # 파라미터 문자열 생성
-    params_str = build_api_params(gu_code, dong_code)
+    # 필터링은 URL이 아닌 데이터 수신 후 처리
+    # 서울시 API는 URL 파라미터로 필터링을 지원하지 않을 수 있음
     
-    # URL 구성: .../START_INDEX/END_INDEX/CGG_CD/STDG_CD
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1{params_str}"
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1000"
     
     print(f"[DEBUG] Total Count URL: {url}")  # 디버깅용
     
@@ -102,15 +101,18 @@ async def get_total_count(gu_code=None, dong_code=None):
                 if response.status == 200:
                     data = await response.json()
                     
-                    print(f"[DEBUG] Response keys: {data.keys()}")  # 디버깅용
-                    
                     if 'tbLnOpendataRentV' in data:
                         result = data['tbLnOpendataRentV']
                         
-                        print(f"[DEBUG] Result keys: {result.keys()}")  # 디버깅용
-                        
                         if 'list_total_count' in result:
-                            return int(result['list_total_count']), None
+                            total_count = int(result['list_total_count'])
+                            
+                            # 샘플 데이터로 필드명 확인
+                            if 'row' in result and len(result['row']) > 0:
+                                sample = result['row'][0]
+                                print(f"[DEBUG] Sample data keys: {sample.keys()}")
+                            
+                            return total_count, None
                         
                         if 'RESULT' in result:
                             code = result['RESULT'].get('CODE')
@@ -128,12 +130,9 @@ async def get_total_count(gu_code=None, dong_code=None):
 
 # 비동기 데이터 조회 함수
 async def fetch_data_async(session, start_idx, end_idx, gu_code=None, dong_code=None, max_retries=3):
-    """비동기로 단일 범위 데이터 조회"""
-    # 파라미터 문자열 생성
-    params_str = build_api_params(gu_code, dong_code)
-    
-    # URL 구성
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}{params_str}"
+    """비동기로 단일 범위 데이터 조회 (필터링 없이 전체 조회)"""
+    # 서울시 API는 URL 파라미터 필터링을 지원하지 않으므로 전체 조회 후 필터링
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}"
     
     for retry in range(max_retries):
         try:
@@ -145,7 +144,22 @@ async def fetch_data_async(session, start_idx, end_idx, gu_code=None, dong_code=
                         result = data['tbLnOpendataRentV']
                         
                         if 'row' in result:
-                            return result['row'], None
+                            rows = result['row']
+                            
+                            # 클라이언트 사이드 필터링
+                            if gu_code or dong_code:
+                                filtered_rows = []
+                                for row in rows:
+                                    # CGG_CD 필드로 자치구 필터링
+                                    if gu_code and row.get('CGG_CD') != str(gu_code):
+                                        continue
+                                    # STDG_CD 필드로 법정동 필터링
+                                    if dong_code and row.get('STDG_CD') != str(dong_code):
+                                        continue
+                                    filtered_rows.append(row)
+                                return filtered_rows, None
+                            
+                            return rows, None
                         
                         if 'RESULT' in result:
                             code = result['RESULT'].get('CODE')

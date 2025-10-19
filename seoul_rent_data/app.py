@@ -45,6 +45,7 @@ def get_coordinates(address):
     return None, None
 
 # 임대차 데이터 조회 함수
+@st.cache_data(ttl=3600)  # 1시간 동안 캐시 유지
 async def get_rent_data(gu_code, gu_name, start_idx, end_idx):
     url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}/2025/{gu_code}/{gu_name}"    
     try:
@@ -285,27 +286,63 @@ def main():
 
         # 필터링 옵션
         st.subheader("필터링 옵션")
-        col1, col2, col3 = st.columns(3)
-            
-        with col1:
-            rent_type = st.multiselect("전월세구분", df['전월세구분'].unique())
-        with col2:
-            min_deposit = st.number_input("최소 보증금(만원)", value=0)
-            max_deposit = st.number_input("최대 보증금(만원)", value=int(df['보증금(만원)'].fillna(0).max()))
-        with col3:
-            min_rent = st.number_input("최소 임대료(만원)", value=0)
-            max_rent = st.number_input("최대 임대료(만원)", value=int(df['임대료(만원)'].fillna(0).max()))
-
-        # 필터링 적용
+        
+        # 보증금 범위 슬라이더
+        min_deposit_value = int(df['보증금(만원)'].fillna(0).min())
+        max_deposit_value = int(df['보증금(만원)'].fillna(0).max())
+        deposit_range = st.slider(
+            "보증금 범위 (만원)",
+            min_value=min_deposit_value,
+            max_value=max_deposit_value,
+            value=(min_deposit_value, max_deposit_value),
+            format="%d"
+        )
+        min_deposit, max_deposit = deposit_range
+        
+        # 임대료 범위 슬라이더
+        min_rent_value = int(df['임대료(만원)'].fillna(0).min())
+        max_rent_value = int(df['임대료(만원)'].fillna(0).max())
+        rent_range = st.slider(
+            "임대료 범위 (만원)",
+            min_value=min_rent_value,
+            max_value=max_rent_value,
+            value=(min_rent_value, max_rent_value),
+            format="%d"
+        )
+        min_rent, max_rent = rent_range
+        
+        # 계약기간 범위 슬라이더 (있는 경우)
+        if '계약기간' in df.columns:
+            period_values = df['계약기간'].dropna().unique()
+            if len(period_values) > 0:
+                period_values = sorted([int(x) for x in period_values if str(x).isdigit()])
+                if period_values:
+                    period_range = st.slider(
+                        "계약기간 (개월)",
+                        min_value=min(period_values),
+                        max_value=max(period_values),
+                        value=(min(period_values), max(period_values)),
+                        format="%d"
+                    )
+                    min_period, max_period = period_range        # 필터링 적용
         filtered_df = df.copy()
-        if rent_type:
-            filtered_df = filtered_df[filtered_df['전월세구분'].isin(rent_type)]
+        
+        # 보증금과 임대료 필터 적용
         filtered_df = filtered_df[
             (filtered_df['보증금(만원)'] >= min_deposit) &
             (filtered_df['보증금(만원)'] <= max_deposit) &
             (filtered_df['임대료(만원)'] >= min_rent) &
             (filtered_df['임대료(만원)'] <= max_rent)
         ]
+        
+        # 계약기간 필터 적용 (있는 경우)
+        if '계약기간' in filtered_df.columns and 'min_period' in locals():
+            filtered_df = filtered_df[
+                filtered_df['계약기간'].apply(lambda x: 
+                    float(x) >= min_period and float(x) <= max_period 
+                    if str(x).isdigit() else False
+                )
+            ]
 
         # 결과 표시
         st.subheader("조회 결과")

@@ -14,11 +14,30 @@ from folium import plugins
 import folium
 from streamlit_folium import folium_static
 
-# 환경변수 로드
-load_dotenv()
-SEOUL_API_KEY = os.getenv('SEOUL_LANDMARK_API')
-KAKAO_API_KEY = os.getenv('REST_API')
-KAKAO_JAVA_SCRIPT_KEY = os.getenv('KAKAO_JAVA_SCRIPT_KEY')
+# API 키 로드 함수
+def load_api_keys():
+    """환경에 따라 적절한 방식으로 API 키 로드"""
+    # 로컬 환경 (.env 파일)
+    if os.path.exists(".env"):
+        load_dotenv()
+        return {
+            "SEOUL_LANDMARK_API": os.getenv("SEOUL_LANDMARK_API"),
+            "REST_API": os.getenv("REST_API"),
+            "KAKAO_JAVA_SCRIPT_KEY": os.getenv("KAKAO_JAVA_SCRIPT_KEY")
+        }
+    # Streamlit Cloud 환경
+    else:
+        return {
+            "SEOUL_LANDMARK_API": st.secrets["SEOUL_LANDMARK_API"],
+            "REST_API": st.secrets["REST_API"],
+            "KAKAO_JAVA_SCRIPT_KEY": st.secrets["KAKAO_JAVA_SCRIPT_KEY"]
+        }
+
+# API 키 로드
+API_KEYS = load_api_keys()
+SEOUL_API_KEY = API_KEYS["SEOUL_LANDMARK_API"]
+KAKAO_API_KEY = API_KEYS["REST_API"]
+KAKAO_JAVA_SCRIPT_KEY = API_KEYS["KAKAO_JAVA_SCRIPT_KEY"]
 
 # 페이지 설정
 st.set_page_config(

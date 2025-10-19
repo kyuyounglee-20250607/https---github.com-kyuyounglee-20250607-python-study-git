@@ -142,6 +142,12 @@ def main():
             # 데이터프레임 생성 및 전처리
             df = pd.DataFrame(data)
             
+            # 숫자형 컬럼 변환
+            numeric_columns = ['GRFE', 'RTFE', 'MNO', 'SNO', 'FLR', 'RENT_AREA']
+            for col in numeric_columns:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            
             # 컬럼명 한글 변환
             column_mapping = {
                 'STDG_NM': '법정동명',
@@ -186,10 +192,10 @@ def main():
                 rent_type = st.multiselect("전월세구분", df['전월세구분'].unique())
             with col2:
                 min_deposit = st.number_input("최소 보증금(만원)", value=0)
-                max_deposit = st.number_input("최대 보증금(만원)", value=int(df['보증금(만원)'].max()))
+                max_deposit = st.number_input("최대 보증금(만원)", value=int(df['보증금(만원)'].fillna(0).max()))
             with col3:
                 min_rent = st.number_input("최소 임대료(만원)", value=0)
-                max_rent = st.number_input("최대 임대료(만원)", value=int(df['임대료(만원)'].max()))
+                max_rent = st.number_input("최대 임대료(만원)", value=int(df['임대료(만원)'].fillna(0).max()))
 
             # 필터링 적용
             filtered_df = df.copy()

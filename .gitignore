@@ -6,4 +6,5 @@
 .env
 
 *.json"auto/credentials.json" 
-*.csv
+seoul_rent_data/서울특별시_전월세가_2024.csv
+seoul_rent_data/seoul_rent_data_20251019_135051.csv

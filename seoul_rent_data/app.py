@@ -60,10 +60,39 @@ def get_coordinates(address):
     
     return None, None
 
-# 전체 데이터 개수 조회
-async def get_total_count(gu_code, dong_code=None):
-    """전체 데이터 개수 조회 (1/1로 요청)"""
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1"
+# URL 파라미터 생성 함수
+def build_api_params(gu_code=None, dong_code=None):
+    """API URL 파라미터 문자열 생성
+    서울시 OpenAPI는 선택적 파라미터를 순서대로 전달
+    형식: /START/END 또는 /START/END/접수연도/자치구코드/자치구명/법정동코드/...
+    """
+    if not gu_code and not dong_code:
+        return ""
+    
+    # 접수연도는 빈 값으로, 자치구코드만 또는 자치구코드+법정동코드 전달
+    params = []
+    
+    # 접수연도 (선택사항이지만 순서상 필요할 수 있음)
+    # params.append("")  # 비워두기
+    
+    if gu_code:
+        params.append(str(gu_code))
+    
+    if dong_code:
+        params.append(str(dong_code))
+    
+    return "/" + "/".join(params) if params else ""
+
+# 전체 데이터 개수 조회 (필터 적용)
+async def get_total_count(gu_code=None, dong_code=None):
+    """구/동 필터를 적용한 전체 데이터 개수 조회 (1/1로 요청)"""
+    # 파라미터 문자열 생성
+    params_str = build_api_params(gu_code, dong_code)
+    
+    # URL 구성: .../START_INDEX/END_INDEX/CGG_CD/STDG_CD
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1{params_str}"
+    
+    print(f"[DEBUG] Total Count URL: {url}")  # 디버깅용
     
     timeout = aiohttp.ClientTimeout(total=30)
     
@@ -73,8 +102,12 @@ async def get_total_count(gu_code, dong_code=None):
                 if response.status == 200:
                     data = await response.json()
                     
+                    print(f"[DEBUG] Response keys: {data.keys()}")  # 디버깅용
+                    
                     if 'tbLnOpendataRentV' in data:
                         result = data['tbLnOpendataRentV']
+                        
+                        print(f"[DEBUG] Result keys: {result.keys()}")  # 디버깅용
                         
                         if 'list_total_count' in result:
                             return int(result['list_total_count']), None
@@ -84,7 +117,7 @@ async def get_total_count(gu_code, dong_code=None):
                             msg = result['RESULT'].get('MESSAGE', '알 수 없는 오류')
                             return None, f"API 오류: {code} - {msg}"
                     
-                    return None, "잘못된 응답 형식"
+                    return None, f"잘못된 응답 형식: {data}"
                 else:
                     return None, f"HTTP 오류: {response.status}"
                     
@@ -94,9 +127,13 @@ async def get_total_count(gu_code, dong_code=None):
         return None, f"오류 발생: {str(e)}"
 
 # 비동기 데이터 조회 함수
-async def fetch_data_async(session, start_idx, end_idx, max_retries=3):
+async def fetch_data_async(session, start_idx, end_idx, gu_code=None, dong_code=None, max_retries=3):
     """비동기로 단일 범위 데이터 조회"""
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}"
+    # 파라미터 문자열 생성
+    params_str = build_api_params(gu_code, dong_code)
+    
+    # URL 구성
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}{params_str}"
     
     for retry in range(max_retries):
         try:
@@ -145,7 +182,7 @@ async def fetch_data_async(session, start_idx, end_idx, max_retries=3):
     return None, "최대 재시도 횟수 초과"
 
 # 순차적 비동기 데이터 수집
-async def collect_data_sequential(total_count, progress_callback=None):
+async def collect_data_sequential(total_count, gu_code=None, dong_code=None, progress_callback=None):
     """비동기로 순차적으로 데이터 수집 (100건씩)"""
     all_data = []
     batch_size = 100
@@ -166,8 +203,8 @@ async def collect_data_sequential(total_count, progress_callback=None):
                     len(all_data)
                 )
             
-            # 비동기로 데이터 조회
-            data, error = await fetch_data_async(session, current_idx, end_idx)
+            # 비동기로 데이터 조회 (파라미터 전달)
+            data, error = await fetch_data_async(session, current_idx, end_idx, gu_code, dong_code)
             
             if error:
                 # 에러 발생 시 로깅하고 계속 진행
@@ -196,7 +233,7 @@ async def collect_data_sequential(total_count, progress_callback=None):
     return all_data
 
 # 동기 래퍼 함수
-def get_all_rent_data(gu_code, dong_code=None, progress_callback=None):
+def get_all_rent_data(gu_code=None, dong_code=None, progress_callback=None):
     """전체 데이터 수집 (동기 래퍼)"""
     
     # 1단계: 전체 개수 조회
@@ -214,9 +251,9 @@ def get_all_rent_data(gu_code, dong_code=None, progress_callback=None):
     if progress_callback:
         progress_callback(0, 0, total_count, 0, status=f"총 {total_count:,}건의 데이터 수집 시작...")
     
-    # 2단계: 비동기로 순차적 데이터 수집
+    # 2단계: 비동기로 순차적 데이터 수집 (파라미터 전달)
     try:
-        all_data = asyncio.run(collect_data_sequential(total_count, progress_callback))
+        all_data = asyncio.run(collect_data_sequential(total_count, gu_code, dong_code, progress_callback))
         
         if all_data:
             return pd.DataFrame(all_data), None

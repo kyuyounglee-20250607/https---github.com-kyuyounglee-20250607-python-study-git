@@ -85,14 +85,15 @@ def create_kakao_map(data_df, center_lat, center_lng):
     
     map_html = f"""
     <div id="map" style="width:100%;height:600px;"></div>
-    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={KAKAO_API_KEY}"></script>
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={KAKAO_API_KEY}&autoload=false"></script>
     <script>
-        var container = document.getElementById('map');
-        var options = {{
-            center: new kakao.maps.LatLng({center_lat}, {center_lng}),
-            level: 5
-        }};
-        var map = new kakao.maps.Map(container, options);
+        kakao.maps.load(function() {{
+            var container = document.getElementById('map');
+            var options = {{
+                center: new kakao.maps.LatLng({center_lat}, {center_lng}),
+                level: 5
+            }};
+            var map = new kakao.maps.Map(container, options);
         
         var markers = {json.dumps(markers)};
         markers.forEach(function(markerInfo) {{
@@ -108,6 +109,7 @@ def create_kakao_map(data_df, center_lat, center_lng):
             kakao.maps.event.addListener(marker, 'click', function() {{
                 infowindow.open(map, marker);
             }});
+        }});
         }});
     </script>
     """

@@ -177,99 +177,171 @@ def main():
     )
 
     if st.button("조회"):
-        with st.spinner("데이터를 조회중입니다..."):
+        # 상태 표시 컨테이너 초기화
+        status_container = st.empty()
+        progress_container = st.empty()
+        result_container = st.empty()
+        
+        # 데이터 조회 시작
+        status_container.text("🔍 데이터를 조회중입니다...")
+        progress_bar = progress_container.progress(0)
+        
+        # 초기 데이터 조회로 전체 개수 확인
+        initial_data = asyncio.run(get_rent_data(selected_gu[0], selected_gu[1], 1, 1))
+        if not initial_data:
+            st.error("데이터를 조회할 수 없습니다.")
+            return
+            
+        total_count = initial_data[0].get('총건수', 1000)  # 기본값 1000
+        page_size = 1000
+        total_pages = (total_count + page_size - 1) // page_size
+        
+        # 진행 상태 업데이트
+        result_container.info(f"총 {total_count:,}건의 데이터를 조회합니다.")
+        
+        # 전체 데이터 수집
+        all_data = []
+        for page in range(total_pages):
+            start_idx = page * page_size + 1
+            end_idx = min((page + 1) * page_size, total_count)
+            
+            # 진행률 업데이트
+            progress = (page + 1) / total_pages
+            status_container.text(f"🔍 데이터를 조회중입니다... ({start_idx:,}~{end_idx:,}/{total_count:,})")
+            progress_bar.progress(progress)
+            
             # 데이터 조회
-            data = asyncio.run(get_rent_data(selected_gu[0], selected_gu[1], 1, 1000))
-            if not data:
-                st.error("데이터를 조회할 수 없습니다.")
-                return
-
-            # 데이터프레임 생성 및 전처리
-            df = pd.DataFrame(data)
+            page_data = asyncio.run(get_rent_data(selected_gu[0], selected_gu[1], start_idx, end_idx))
+            if page_data:
+                all_data.extend(page_data)
+            time.sleep(0.5)  # API 요청 간격 조절
+        
+        # 진행 완료
+        progress_bar.progress(1.0)
+        status_container.text("✅ 데이터 조회가 완료되었습니다!")
+        
+        if not all_data:
+            st.error("데이터를 조회할 수 없습니다.")
+            return
             
-            # 숫자형 컬럼 변환
-            numeric_columns = ['GRFE', 'RTFE', 'MNO', 'SNO', 'FLR', 'RENT_AREA']
-            for col in numeric_columns:
-                if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce')
+        data = all_data
+
+
+
+        # 데이터프레임 생성 및 전처리
+        df = pd.DataFrame(data)
+        
+        # 숫자형 컬럼 변환
+        numeric_columns = ['GRFE', 'RTFE', 'MNO', 'SNO', 'FLR', 'RENT_AREA']
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # 컬럼명 한글 변환
+        column_mapping = {
+            'STDG_NM': '법정동명',
+            'LOTNO_SE_NM': '지번구분명',
+            'MNO': '본번',
+            'SNO': '부번',
+            'FLR': '층',
+            'CTRT_DAY': '계약일',
+            'RENT_SE': '전월세구분',
+            'RENT_AREA': '임대면적(㎡)',
+            'GRFE': '보증금(만원)',
+            'RTFE': '임대료(만원)',
+            'BLDG_NM': '건물명',
+            'ARCH_YR': '건축년도',
+            'BLDG_USG': '건물용도',
+            'CTRT_PRD': '계약기간',
+            'NEW_UPDT_YN': '신규갱신여부',
+            'CTRT_UPDT_USE_YN': '계약갱신권사용여부',
+            'BFR_GRFE': '종전보증금',
+            'BFR_RTFE': '종전임대료'
+        }
+        df = df.rename(columns=column_mapping)
+
+        # 주소 생성
+        df['주소'] = df.apply(lambda x: create_address(x, selected_gu[1]), axis=1)
+
+        # 위경도 조회 시작
+        status_container.text("🌍 위치 정보를 조회중입니다...")
+        total_addresses = len(df['주소'])
+        
+        coordinates = []
+        for idx, address in enumerate(df['주소']):
+            lng, lat = get_coordinates(address)
+            coordinates.append((lat, lng))
+            # 진행률 업데이트
+            progress = (idx + 1) / total_addresses
+            progress_bar.progress(progress)
+            status_container.text(f"🌍 위치 정보를 조회중입니다... ({idx + 1}/{total_addresses})")
+        
+        # 진행바 완료 표시
+        progress_bar.progress(1.0)
+        status_container.text("✅ 위치 정보 조회가 완료되었습니다!")
+        
+        df['위도'] = [coord[0] for coord in coordinates]
+        df['경도'] = [coord[1] for coord in coordinates]
+
+        # 필터링 옵션
+        st.subheader("필터링 옵션")
+        col1, col2, col3 = st.columns(3)
             
-            # 컬럼명 한글 변환
-            column_mapping = {
-                'STDG_NM': '법정동명',
-                'LOTNO_SE_NM': '지번구분명',
-                'MNO': '본번',
-                'SNO': '부번',
-                'FLR': '층',
-                'CTRT_DAY': '계약일',
-                'RENT_SE': '전월세구분',
-                'RENT_AREA': '임대면적(㎡)',
-                'GRFE': '보증금(만원)',
-                'RTFE': '임대료(만원)',
-                'BLDG_NM': '건물명',
-                'ARCH_YR': '건축년도',
-                'BLDG_USG': '건물용도',
-                'CTRT_PRD': '계약기간',
-                'NEW_UPDT_YN': '신규갱신여부',
-                'CTRT_UPDT_USE_YN': '계약갱신권사용여부',
-                'BFR_GRFE': '종전보증금',
-                'BFR_RTFE': '종전임대료'
-            }
-            df = df.rename(columns=column_mapping)
+        with col1:
+            rent_type = st.multiselect("전월세구분", df['전월세구분'].unique())
+        with col2:
+            min_deposit = st.number_input("최소 보증금(만원)", value=0)
+            max_deposit = st.number_input("최대 보증금(만원)", value=int(df['보증금(만원)'].fillna(0).max()))
+        with col3:
+            min_rent = st.number_input("최소 임대료(만원)", value=0)
+            max_rent = st.number_input("최대 임대료(만원)", value=int(df['임대료(만원)'].fillna(0).max()))
 
-            # 주소 생성
-            df['주소'] = df.apply(lambda x: create_address(x, selected_gu[1]), axis=1)
+        # 필터링 적용
+        filtered_df = df.copy()
+        if rent_type:
+            filtered_df = filtered_df[filtered_df['전월세구분'].isin(rent_type)]
+        filtered_df = filtered_df[
+            (filtered_df['보증금(만원)'] >= min_deposit) &
+            (filtered_df['보증금(만원)'] <= max_deposit) &
+            (filtered_df['임대료(만원)'] >= min_rent) &
+            (filtered_df['임대료(만원)'] <= max_rent)
+        ]
 
-            # 위경도 조회
-            coordinates = []
-            with st.spinner("위치 정보를 조회중입니다..."):
-                for address in df['주소']:
-                    lng, lat = get_coordinates(address)
-                    coordinates.append((lat, lng))
+        # 결과 표시
+        st.subheader("조회 결과")
+        st.write(f"총 {len(filtered_df)}건의 데이터가 조회되었습니다.")
+
+        # 지도 표시
+        if not filtered_df.empty:
+            center_lat = filtered_df['위도'].mean()
+            center_lng = filtered_df['경도'].mean()
             
-            df['위도'] = [coord[0] for coord in coordinates]
-            df['경도'] = [coord[1] for coord in coordinates]
-
-            # 필터링 옵션
-            st.subheader("필터링 옵션")
-            col1, col2, col3 = st.columns(3)
+            # Folium 지도 생성 시작
+            status_container.text("🗺️ 지도를 생성중입니다...")
+            progress_bar.progress(0)
             
-            with col1:
-                rent_type = st.multiselect("전월세구분", df['전월세구분'].unique())
-            with col2:
-                min_deposit = st.number_input("최소 보증금(만원)", value=0)
-                max_deposit = st.number_input("최대 보증금(만원)", value=int(df['보증금(만원)'].fillna(0).max()))
-            with col3:
-                min_rent = st.number_input("최소 임대료(만원)", value=0)
-                max_rent = st.number_input("최대 임대료(만원)", value=int(df['임대료(만원)'].fillna(0).max()))
+            # Folium 지도 생성 및 표시
+            map_obj = create_folium_map(filtered_df, center_lat, center_lng)
+            folium_static(map_obj)
+            
+            # 진행 완료
+            progress_bar.progress(1.0)
+            status_container.text("✨ 모든 처리가 완료되었습니다!")
 
-            # 필터링 적용
-            filtered_df = df.copy()
-            if rent_type:
-                filtered_df = filtered_df[filtered_df['전월세구분'].isin(rent_type)]
-            filtered_df = filtered_df[
-                (filtered_df['보증금(만원)'] >= min_deposit) &
-                (filtered_df['보증금(만원)'] <= max_deposit) &
-                (filtered_df['임대료(만원)'] >= min_rent) &
-                (filtered_df['임대료(만원)'] <= max_rent)
-            ]
-
-            # 결과 표시
-            st.subheader("조회 결과")
-            st.write(f"총 {len(filtered_df)}건의 데이터가 조회되었습니다.")
-
-            # 지도 표시
-            if not filtered_df.empty:
-                center_lat = filtered_df['위도'].mean()
-                center_lng = filtered_df['경도'].mean()
-                # Folium 지도 생성 및 표시
-                map_obj = create_folium_map(filtered_df, center_lat, center_lng)
-                folium_static(map_obj)
-
-                # 데이터 테이블 표시
-                st.subheader("상세 데이터")
-                st.dataframe(filtered_df)
-            else:
-                st.warning("조건에 맞는 데이터가 없습니다.")
+            # 데이터 테이블 표시
+            st.subheader("상세 데이터")
+            st.dataframe(filtered_df)
+            
+            # CSV 다운로드 버튼
+            csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="CSV 파일 다운로드",
+                data=csv_data,
+                file_name=f"서울시_임대_정보_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.warning("조건에 맞는 데이터가 없습니다.")
 
 if __name__ == "__main__":
     main()

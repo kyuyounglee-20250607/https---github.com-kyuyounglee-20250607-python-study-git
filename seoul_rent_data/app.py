@@ -66,18 +66,32 @@ def get_coordinates(address):
 # 임대차 데이터 조회 함수
 async def _get_rent_data_async(gu_code, gu_name, start_idx, end_idx):
     """비동기 데이터 조회 함수"""
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}/2025/{gu_code}/{gu_name}"    
+    # 구 코드만 사용하도록 URL 수정
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}/"    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:                
                 if response.status == 200:
                     data = await response.json()
-                    return data['tbLnOpendataRentV']
+                    if 'tbLnOpendataRentV' in data:
+                        # 구 코드로 필터링
+                        result = data['tbLnOpendataRentV']
+                        if 'row' in result:
+                            filtered_rows = [
+                                row for row in result['row'] 
+                                if str(row.get('SGG_CD', '')).startswith(gu_code)
+                            ]
+                            result['row'] = filtered_rows
+                            result['list_total_count'] = len(filtered_rows)
+                            return result
+                    st.error("데이터 형식이 올바르지 않습니다.")
+                    return None
                 else:
                     st.error(f"API 오류 발생: {response.status}")
                     return None
     except Exception as e:
-        st.error(f"데이터 조회 중 오류 발생: {e}")
+        st.error(f"데이터 조회 중 오류 발생: {str(e)}")
+        st.error(f"API URL: {url}")
         return None
 
 @st.cache_data(ttl=3600)  # 1시간 동안 캐시 유지
@@ -352,16 +366,22 @@ def filter_and_display_data(df, status_container=None, progress_bar=None):
     else:
         st.warning("조건에 맞는 데이터가 없습니다.")
 
-def main():
-    st.title("서울시 임대차 정보 조회")
-    
-    # 세션 상태 초기화
+def initialize_session_state():
+    """세션 상태 초기화 함수"""
     if 'full_data_df' not in st.session_state:
         st.session_state.full_data_df = None
     if 'selected_gu_info' not in st.session_state:
         st.session_state.selected_gu_info = None
     if 'data_loaded' not in st.session_state:
         st.session_state.data_loaded = False
+    if 'last_update' not in st.session_state:
+        st.session_state.last_update = None
+
+def main():
+    st.title("서울시 임대차 정보 조회")
+    
+    # 세션 상태 초기화
+    initialize_session_state()
     
     # 사이드바 설정
     with st.sidebar:
@@ -391,8 +411,12 @@ def main():
             help="한 번에 가져올 데이터의 개수입니다."
         )
 
+    col1, col2 = st.columns([4, 1])
+    with col2:
+        load_data = st.button("데이터 조회", type="primary", use_container_width=True)
+    
     # 새로운 데이터 조회가 필요한 경우에만 API 호출
-    if st.button("데이터 조회") or (st.session_state.selected_gu_info != selected_gu):
+    if load_data:
         # 상태 표시 컨테이너 초기화
         status_container = st.empty()
         progress_container = st.empty()
@@ -456,8 +480,15 @@ def main():
                 with col3:
                     st.metric("평균 임대료", f"{df['임대료(만원)'].mean():,.0f}만원")
     
+    # 로딩 상태 표시
+    if 'data_loaded' not in st.session_state:
+        st.info("👆 위에서 자치구를 선택하고 데이터 조회 버튼을 클릭하세요.")
+    
     # 저장된 데이터가 있으면 필터링 및 표시
     if st.session_state.data_loaded and st.session_state.full_data_df is not None:
+        # 마지막 업데이트 시간 표시
+        st.success(f"✅ {st.session_state.selected_gu_info[1]} 데이터 로드 완료 (마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
+        
         # 데이터 분석 탭 생성
         tab1, tab2, tab3 = st.tabs(["📊 데이터 분석", "🗺️ 지도 보기", "📋 상세 데이터"])
         

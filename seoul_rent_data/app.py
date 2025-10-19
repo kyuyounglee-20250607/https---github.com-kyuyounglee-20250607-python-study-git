@@ -4,6 +4,8 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
+import asyncio
+import aiohttp
 import time
 from datetime import datetime
 import folium
@@ -47,7 +49,7 @@ def get_coordinates(address):
     params = {'query': address}
     
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=5)
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         if response.status_code == 200:
             result = response.json()
             if result.get('documents'):
@@ -58,89 +60,170 @@ def get_coordinates(address):
     
     return None, None
 
-# 임대차 데이터 조회 함수 (단순화된 동기 버전)
-def get_rent_data_page(gu_code, dong_code=None, page=1, max_retries=3):
-    """단일 페이지 데이터 조회"""
-    page_size = 1000
-    start_idx = (page - 1) * page_size + 1
-    end_idx = page * page_size
+# 전체 데이터 개수 조회
+async def get_total_count(gu_code, dong_code=None):
+    """전체 데이터 개수 조회 (1/1로 요청)"""
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/1/1"
     
-    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}"
-    print(f'임대차 데이터 조회 함수 : {url}')
-    for retry in range(max_retries):
-        try:
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if 'tbLnOpendataRentV' in data:
-                    result = data['tbLnOpendataRentV']
+    timeout = aiohttp.ClientTimeout(total=30)
+    
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
                     
-                    # 데이터가 있는 경우
-                    if 'row' in result:
-                        return result['row'], None
-                    
-                    # 데이터가 없는 경우 (INFO-200)
-                    if 'RESULT' in result:
-                        code = result['RESULT'].get('CODE')
-                        if code == 'INFO-200':
-                            return [], None
-                        else:
+                    if 'tbLnOpendataRentV' in data:
+                        result = data['tbLnOpendataRentV']
+                        
+                        if 'list_total_count' in result:
+                            return int(result['list_total_count']), None
+                        
+                        if 'RESULT' in result:
+                            code = result['RESULT'].get('CODE')
                             msg = result['RESULT'].get('MESSAGE', '알 수 없는 오류')
                             return None, f"API 오류: {code} - {msg}"
-                
-                return None, "잘못된 응답 형식"
-            
-            else:
-                if retry < max_retries - 1:
-                    time.sleep(1 * (retry + 1))
-                    continue
-                return None, f"HTTP 오류: {response.status_code}"
-                
-        except requests.Timeout:
+                    
+                    return None, "잘못된 응답 형식"
+                else:
+                    return None, f"HTTP 오류: {response.status}"
+                    
+    except asyncio.TimeoutError:
+        return None, "요청 시간 초과"
+    except Exception as e:
+        return None, f"오류 발생: {str(e)}"
+
+# 비동기 데이터 조회 함수
+async def fetch_data_async(session, start_idx, end_idx, max_retries=3):
+    """비동기로 단일 범위 데이터 조회"""
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/tbLnOpendataRentV/{start_idx}/{end_idx}"
+    
+    for retry in range(max_retries):
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    if 'tbLnOpendataRentV' in data:
+                        result = data['tbLnOpendataRentV']
+                        
+                        if 'row' in result:
+                            return result['row'], None
+                        
+                        if 'RESULT' in result:
+                            code = result['RESULT'].get('CODE')
+                            if code == 'INFO-200':  # 데이터 없음
+                                return [], None
+                            msg = result['RESULT'].get('MESSAGE', '알 수 없는 오류')
+                            
+                            # 재시도 가능한 오류인 경우
+                            if retry < max_retries - 1:
+                                await asyncio.sleep(2 ** retry)
+                                continue
+                            
+                            return None, f"API 오류: {code} - {msg}"
+                    
+                    return None, "잘못된 응답 형식"
+                else:
+                    if retry < max_retries - 1:
+                        await asyncio.sleep(2 ** retry)
+                        continue
+                    return None, f"HTTP 오류: {response.status}"
+                    
+        except asyncio.TimeoutError:
             if retry < max_retries - 1:
-                time.sleep(2 * (retry + 1))
+                await asyncio.sleep(2 ** retry)
                 continue
-            return None, "요청 시간 초과"
+            return None, f"요청 시간 초과 (범위: {start_idx}-{end_idx})"
             
         except Exception as e:
             if retry < max_retries - 1:
-                time.sleep(1 * (retry + 1))
+                await asyncio.sleep(2 ** retry)
                 continue
             return None, f"오류 발생: {str(e)}"
     
     return None, "최대 재시도 횟수 초과"
 
-def get_all_rent_data(gu_code, dong_code=None, progress_callback=None):
-    """전체 데이터 수집"""
+# 순차적 비동기 데이터 수집
+async def collect_data_sequential(total_count, progress_callback=None):
+    """비동기로 순차적으로 데이터 수집 (100건씩)"""
     all_data = []
-    page = 1
-    max_pages = 50  # 최대 50,000건
+    batch_size = 100
+    current_idx = 1
     
-    while page <= max_pages:
-        if progress_callback:
-            progress_callback(f"페이지 {page} 조회 중... (현재 {len(all_data):,}건)")
-        
-        data, error = get_rent_data_page(gu_code, dong_code, page)
-        
-        if error:
-            return None, error
-        
-        if not data:  # 더 이상 데이터가 없음
-            break
-        
-        all_data.extend(data)
-        
-        if len(data) < 1000:  # 마지막 페이지
-            break
-        
-        page += 1
-        time.sleep(0.3)  # API 부하 방지
+    # 타임아웃 설정 (30초로 증가)
+    timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=20)
     
-    if all_data:
-        return pd.DataFrame(all_data), None
-    return None, "데이터를 찾을 수 없습니다."
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        while current_idx <= total_count:
+            end_idx = min(current_idx + batch_size - 1, total_count)
+            
+            if progress_callback:
+                progress_callback(
+                    current_idx, 
+                    end_idx, 
+                    total_count, 
+                    len(all_data)
+                )
+            
+            # 비동기로 데이터 조회
+            data, error = await fetch_data_async(session, current_idx, end_idx)
+            
+            if error:
+                # 에러 발생 시 로깅하고 계속 진행
+                if progress_callback:
+                    progress_callback(
+                        current_idx, 
+                        end_idx, 
+                        total_count, 
+                        len(all_data),
+                        error=f"⚠️ 범위 {current_idx}-{end_idx} 조회 실패: {error}"
+                    )
+                # 다음 배치로 이동
+                current_idx = end_idx + 1
+                await asyncio.sleep(1)  # 에러 후 대기
+                continue
+            
+            if data:
+                all_data.extend(data)
+            
+            # 다음 범위로 이동
+            current_idx = end_idx + 1
+            
+            # API 부하 방지를 위한 대기 (성공 시에만)
+            await asyncio.sleep(0.2)
+    
+    return all_data
+
+# 동기 래퍼 함수
+def get_all_rent_data(gu_code, dong_code=None, progress_callback=None):
+    """전체 데이터 수집 (동기 래퍼)"""
+    
+    # 1단계: 전체 개수 조회
+    if progress_callback:
+        progress_callback(0, 0, 0, 0, status="전체 데이터 개수 조회 중...")
+    
+    total_count, error = asyncio.run(get_total_count(gu_code, dong_code))
+    
+    if error:
+        return None, error
+    
+    if not total_count or total_count == 0:
+        return None, "조회된 데이터가 없습니다."
+    
+    if progress_callback:
+        progress_callback(0, 0, total_count, 0, status=f"총 {total_count:,}건의 데이터 수집 시작...")
+    
+    # 2단계: 비동기로 순차적 데이터 수집
+    try:
+        all_data = asyncio.run(collect_data_sequential(total_count, progress_callback))
+        
+        if all_data:
+            return pd.DataFrame(all_data), None
+        return None, "데이터 수집 실패"
+        
+    except Exception as e:
+        return None, f"데이터 수집 중 오류: {str(e)}"
 
 def preprocess_data(df):
     """데이터 전처리 함수"""
@@ -362,15 +445,28 @@ def main():
     if load_data:
         status_placeholder = st.empty()
         progress_bar = st.progress(0)
+        detail_placeholder = st.empty()
         
         try:
-            # 1. 데이터 수집
-            status_placeholder.info("📥 데이터를 수집하고 있습니다...")
-            progress_bar.progress(0.1)
+            # 진행 상태 콜백 함수
+            def update_progress(start_idx, end_idx, total, collected, status=None, error=None):
+                if error:
+                    detail_placeholder.warning(error)
+                    return
+                
+                if status:
+                    status_placeholder.info(f"📥 {status}")
+                    return
+                
+                if total > 0:
+                    progress = min(end_idx / total, 1.0)
+                    progress_bar.progress(progress)
+                    
+                    status_msg = f"📥 데이터 수집 중: {start_idx:,} ~ {end_idx:,} / {total:,}건"
+                    status_placeholder.info(status_msg)
+                    detail_placeholder.text(f"✅ 현재까지 수집된 데이터: {collected:,}건")
             
-            def update_progress(msg):
-                status_placeholder.info(f"📥 {msg}")
-            
+            # 데이터 수집 시작
             df, error_msg = get_all_rent_data(
                 gu_code=selected_gu[0],
                 dong_code=selected_dong[0] if selected_dong[0] else None,
@@ -380,19 +476,21 @@ def main():
             if error_msg:
                 status_placeholder.error(f"❌ {error_msg}")
                 progress_bar.empty()
+                detail_placeholder.empty()
                 return
             
             if df is None or df.empty:
                 status_placeholder.warning("⚠️ 조회된 데이터가 없습니다.")
                 progress_bar.empty()
+                detail_placeholder.empty()
                 return
             
-            progress_bar.progress(0.3)
+            progress_bar.progress(1.0)
             status_placeholder.success(f"✅ {len(df):,}건의 데이터를 수집했습니다.")
+            detail_placeholder.empty()
             
-            # 2. 데이터 전처리
+            # 데이터 전처리
             status_placeholder.info("⚙️ 데이터를 전처리하고 있습니다...")
-            progress_bar.progress(0.4)
             
             df = preprocess_data(df)
             if df is None:
@@ -402,9 +500,8 @@ def main():
             
             # 주소 생성
             df['주소'] = df.apply(lambda x: create_address(x, selected_gu[1]), axis=1)
-            progress_bar.progress(0.5)
             
-            # 3. 위치 정보 조회
+            # 위치 정보 조회
             status_placeholder.info("🌍 위치 정보를 조회하고 있습니다...")
             
             coordinates = []
@@ -414,10 +511,10 @@ def main():
                 lng, lat = get_coordinates(address)
                 coordinates.append((lat, lng))
                 
-                if (idx + 1) % 10 == 0:  # 10건마다 업데이트
-                    progress = 0.5 + 0.4 * ((idx + 1) / total)
+                if (idx + 1) % 50 == 0:  # 50건마다 업데이트
+                    progress = (idx + 1) / total
                     progress_bar.progress(progress)
-                    status_placeholder.info(f"🌍 위치 정보 조회 중... ({idx + 1}/{total})")
+                    status_placeholder.info(f"🌍 위치 정보 조회 중... ({idx + 1:,}/{total:,})")
             
             df['위도'] = [coord[0] for coord in coordinates]
             df['경도'] = [coord[1] for coord in coordinates]
@@ -437,6 +534,7 @@ def main():
         except Exception as e:
             status_placeholder.error(f"❌ 오류 발생: {str(e)}")
             progress_bar.empty()
+            detail_placeholder.empty()
             return
     
     # 로딩 완료 후 데이터 표시
